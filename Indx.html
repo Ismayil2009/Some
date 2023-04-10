@@ -1,0 +1,36 @@
+<button id="startButton">Начать трансляцию</button>
+
+<script>
+    const startButton = document.getElementById('startButton');
+startButton.addEventListener('click', startStream);
+
+async function startStream() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.autoplay = true;
+    document.body.appendChild(video);
+
+    // создаем RTCPeerConnection
+    const pc = new RTCPeerConnection();
+
+    // добавляем локальный поток
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+    // создаем SDP-предложение и отправляем его на сервер
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    const data = { sdp: pc.localDescription };
+    const response = await fetch('/api/offers', { method: 'POST', body: JSON.stringify(data) });
+    const responseData = await response.json();
+
+    // получаем SDP-ответ от сервера
+    const answer = new RTCSessionDescription(responseData.sdp);
+    await pc.setRemoteDescription(answer);
+  } catch (err) {
+    console.error('Ошибка:', err);
+  }
+}
+
+</script>
